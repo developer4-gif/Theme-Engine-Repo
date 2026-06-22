@@ -263,7 +263,7 @@ export interface Theme {
   id: string;
   name: string;
   description: string;
-  category: 'corporate' | 'healthcare' | 'industrial' | 'tech' | 'luxury' | 'minimal' | 'government' | 'startup';
+  category: 'corporate' | 'healthcare' | 'industrial' | 'tech' | 'luxury' | 'minimal' | 'government' | 'startup' | 'finance' | 'health' | 'education' | 'productivity' | 'medical' | 'navigation' | 'social';
   tags: string[];
   brand: BrandConfig;
   colors: ColorTokens;
