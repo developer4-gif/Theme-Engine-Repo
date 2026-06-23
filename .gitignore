@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# reference screenshots — too large for git (127k images); host separately
+/references/
+
+# generator scripts
+/scripts/
