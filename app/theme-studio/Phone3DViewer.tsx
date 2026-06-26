@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect, Suspense, useCallback } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 interface RefApp {
   id: string;
@@ -13,238 +11,156 @@ interface RefApp {
   screens: string[];
 }
 
-function ContextDisposer() {
-  const { gl } = useThree();
-  useEffect(() => {
-    return () => {
-      const ext = gl.getContext().getExtension('WEBGL_lose_context');
-      ext?.loseContext();
-      gl.dispose();
-    };
-  }, [gl]);
-  return null;
-}
+// ─── Phone mockup — white/grey shell, images scroll inside the screen ─────────
 
-function PhoneModel({ screens, activeIdx }: { screens: string[]; activeIdx: number }) {
-  const groupRef = useRef<THREE.Group>(null!);
-  const [textures, setTextures] = useState<THREE.Texture[]>([]);
-
-  useEffect(() => {
-    if (!screens.length) return;
-    const loader = new THREE.TextureLoader();
-    const loaded: (THREE.Texture | null)[] = new Array(screens.length).fill(null);
-    let done = 0;
-    screens.forEach((url, i) => {
-      loader.load(url,
-        (t) => { t.colorSpace = THREE.SRGBColorSpace; loaded[i] = t; done++; if (done === screens.length) setTextures(loaded.filter(Boolean) as THREE.Texture[]); },
-        undefined,
-        () => { done++; if (done === screens.length) setTextures(loaded.filter(Boolean) as THREE.Texture[]); }
-      );
-    });
-    return () => { loaded.forEach(t => t?.dispose()); };
-  }, [screens.join(',')]);
-
-  useFrame((state) => {
-    if (!groupRef.current) return;
-    const t = state.clock.elapsedTime;
-    groupRef.current.rotation.y = Math.sin(t * 0.4) * 0.25;
-    groupRef.current.rotation.x = Math.sin(t * 0.25) * 0.04;
-  });
-
-  const tex = textures[activeIdx] ?? textures[0] ?? null;
-
-  return (
-    <group ref={groupRef}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[2.2, 4.0, 0.16]} />
-        <meshStandardMaterial color="#b0b8c8" roughness={0.08} metalness={0.92} />
-      </mesh>
-      <mesh position={[0, 0, 0.075]}>
-        <boxGeometry args={[2.0, 3.78, 0.02]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.4} metalness={0.2} />
-      </mesh>
-      <mesh position={[0, 0.04, 0.088]}>
-        <planeGeometry args={[1.82, 3.52]} />
-        {tex
-          ? <meshBasicMaterial map={tex} toneMapped={false} />
-          : <meshStandardMaterial color="#0d1117" roughness={0.9} />}
-      </mesh>
-      <mesh position={[0, 1.72, 0.092]}>
-        <boxGeometry args={[0.38, 0.09, 0.01]} />
-        <meshStandardMaterial color="#050508" roughness={0.9} />
-      </mesh>
-      <mesh position={[0, -1.76, 0.092]}>
-        <boxGeometry args={[0.5, 0.036, 0.005]} />
-        <meshStandardMaterial color="#8892a4" roughness={0.3} metalness={0.5} />
-      </mesh>
-      <mesh position={[-0.62, 1.55, -0.1]}>
-        <boxGeometry args={[0.72, 0.72, 0.06]} />
-        <meshStandardMaterial color="#9aa0ae" roughness={0.05} metalness={0.95} />
-      </mesh>
-      <mesh position={[-0.72, 1.65, -0.135]}>
-        <cylinderGeometry args={[0.14, 0.14, 0.02, 24]} />
-        <meshStandardMaterial color="#111" roughness={0.1} metalness={0.8} />
-      </mesh>
-      <mesh position={[-0.52, 1.65, -0.135]}>
-        <cylinderGeometry args={[0.14, 0.14, 0.02, 24]} />
-        <meshStandardMaterial color="#111" roughness={0.1} metalness={0.8} />
-      </mesh>
-      <mesh position={[-0.62, 1.45, -0.135]}>
-        <cylinderGeometry args={[0.1, 0.1, 0.02, 24]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.05} metalness={0.9} />
-      </mesh>
-      <mesh position={[1.112, 0.5, 0]}>
-        <boxGeometry args={[0.028, 0.4, 0.1]} />
-        <meshStandardMaterial color="#c8d0dc" roughness={0.05} metalness={0.95} />
-      </mesh>
-      <mesh position={[-1.112, 0.68, 0]}>
-        <boxGeometry args={[0.028, 0.28, 0.09]} />
-        <meshStandardMaterial color="#c8d0dc" roughness={0.05} metalness={0.95} />
-      </mesh>
-      <mesh position={[-1.112, 0.28, 0]}>
-        <boxGeometry args={[0.028, 0.28, 0.09]} />
-        <meshStandardMaterial color="#c8d0dc" roughness={0.05} metalness={0.95} />
-      </mesh>
-      <mesh position={[-1.112, 1.1, 0]}>
-        <boxGeometry args={[0.028, 0.16, 0.09]} />
-        <meshStandardMaterial color="#c8d0dc" roughness={0.05} metalness={0.95} />
-      </mesh>
-      {tex && <pointLight position={[0, 0, 1.8]} intensity={1.8} color="#ffffff" distance={5} />}
-      <pointLight position={[-3, 4, 3]} intensity={3.5} color="#e8eeff" distance={12} />
-      <pointLight position={[3, -3, 2]} intensity={1.2} color="#ffd580" distance={10} />
-    </group>
-  );
-}
-
-// ─── Swipeable image carousel ─────────────────────────────────────────────────
-// Works with touch (finger) and mouse drag on any screen size.
-// Each card is the same size, snaps to center, smooth spring animation.
-
-function ImageCarousel({ screens, activeIdx, onChangeIdx }: {
+function PhoneMockup({ screens, activeIdx, onChangeIdx, width = 260 }: {
   screens: string[];
   activeIdx: number;
   onChangeIdx: (i: number) => void;
+  width?: number;
 }) {
-  const trackRef   = useRef<HTMLDivElement>(null);
-  // offset in px — negative = scrolled right
+  const height     = Math.round(width * 530 / 260);
+  const dragging   = useRef(false);
+  const dragStartX = useRef(0);
+  const baseOffset = useRef(0);
+  const containerW = useRef(width);
   const [offset, setOffset]   = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const dragStart  = useRef(0);   // pointer x at drag start
-  const baseOffset = useRef(0);   // offset at drag start
-  const CARD_W     = 200;         // px per card
-  const GAP        = 16;          // px between cards
-  const STEP       = CARD_W + GAP;
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Snap to activeIdx whenever it changes externally (thumbnail click / keyboard)
+  // Snap to activeIdx when changed externally (arrow keys / dots)
   useEffect(() => {
-    setOffset(-activeIdx * STEP);
-  }, [activeIdx, STEP]);
+    setOffset(-activeIdx * 100);
+  }, [activeIdx]);
 
-  const snapToNearest = useCallback((currentOffset: number) => {
-    const raw = -currentOffset / STEP;
-    const clamped = Math.max(0, Math.min(screens.length - 1, Math.round(raw)));
-    onChangeIdx(clamped);
-    setOffset(-clamped * STEP);
-  }, [screens.length, STEP, onChangeIdx]);
+  const snapTo = useCallback((rawOffset: number, flickDelta: number) => {
+    const raw = -rawOffset / 100;
+    let idx: number;
+    if (Math.abs(flickDelta) > 25) {
+      idx = flickDelta < 0
+        ? Math.min(screens.length - 1, Math.ceil(raw - 0.1))
+        : Math.max(0, Math.floor(raw + 0.1));
+    } else {
+      idx = Math.max(0, Math.min(screens.length - 1, Math.round(raw)));
+    }
+    onChangeIdx(idx);
+    setOffset(-idx * 100);
+  }, [screens.length, onChangeIdx]);
 
-  // ── Pointer events (mouse + touch via pointer events API) ────────────────────
-  const onPointerDown = (e: React.PointerEvent) => {
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragStart.current  = e.clientX;
+    containerW.current = (e.currentTarget as HTMLElement).offsetWidth;
+    dragging.current   = true;
+    dragStartX.current = e.clientX;
     baseOffset.current = offset;
-    setDragging(true);
+    setIsDragging(true);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging) return;
-    const delta = e.clientX - dragStart.current;
-    // Rubber-band at edges
-    let next = baseOffset.current + delta;
-    const min = -(screens.length - 1) * STEP;
-    if (next > 0)   next = next * 0.25;
-    if (next < min) next = min + (next - min) * 0.25;
+    if (!dragging.current) return;
+    const deltaPx  = e.clientX - dragStartX.current;
+    const deltaPct = (deltaPx / containerW.current) * 100;
+    let next = baseOffset.current + deltaPct;
+    const min = -(screens.length - 1) * 100;
+    if (next > 0)   next = next * 0.18;
+    if (next < min) next = min + (next - min) * 0.18;
     setOffset(next);
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    if (!dragging) return;
-    setDragging(false);
-    const delta = e.clientX - dragStart.current;
-    // Flick — if moved more than 40px snap one card in that direction
-    if (Math.abs(delta) > 40) {
-      const next = delta < 0
-        ? Math.min(screens.length - 1, activeIdx + 1)
-        : Math.max(0, activeIdx - 1);
-      onChangeIdx(next);
-      setOffset(-next * STEP);
-    } else {
-      snapToNearest(offset);
-    }
+    if (!dragging.current) return;
+    dragging.current = false;
+    setIsDragging(false);
+    const deltaPx = e.clientX - dragStartX.current;
+    snapTo(offset, deltaPx);
   };
 
-  // ── Wheel (horizontal or vertical) ──────────────────────────────────────────
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    if (dx > 20)  { const n = Math.min(screens.length - 1, activeIdx + 1); onChangeIdx(n); setOffset(-n * STEP); }
-    if (dx < -20) { const n = Math.max(0, activeIdx - 1); onChangeIdx(n); setOffset(-n * STEP); }
+    if (dx > 15)  onChangeIdx(Math.min(screens.length - 1, activeIdx + 1));
+    if (dx < -15) onChangeIdx(Math.max(0, activeIdx - 1));
   };
 
   return (
-    <div
-      style={{ overflow: 'hidden', width: '100%', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none' }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onWheel={onWheel}
-    >
-      <div
-        ref={trackRef}
-        style={{
-          display: 'flex',
-          gap: GAP,
-          // Center on first card: shift right by (containerWidth/2 - CARD_W/2)
-          // We use a CSS variable trick via padding instead
-          paddingLeft: `calc(50% - ${CARD_W / 2}px)`,
-          paddingRight: `calc(50% - ${CARD_W / 2}px)`,
-          transform: `translateX(${offset}px)`,
-          transition: dragging ? 'none' : 'transform 0.38s cubic-bezier(0.25, 1, 0.5, 1)',
-          willChange: 'transform',
-        }}
-      >
-        {screens.map((src, i) => {
-          const dist = Math.abs(i - activeIdx);
-          const scale = dist === 0 ? 1 : dist === 1 ? 0.88 : 0.78;
-          const opacity = dist === 0 ? 1 : dist === 1 ? 0.65 : 0.4;
-          return (
-            <div
-              key={i}
-              onClick={() => { if (!dragging) onChangeIdx(i); }}
-              style={{
-                flexShrink: 0,
-                width: CARD_W,
-                height: Math.round(CARD_W * 16 / 9),   // 9:16 portrait
-                borderRadius: 14,
-                overflow: 'hidden',
-                border: `2px solid ${i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
-                transform: `scale(${scale})`,
-                opacity,
-                transition: dragging ? 'opacity 0.1s, transform 0.1s' : 'opacity 0.35s ease, transform 0.35s cubic-bezier(0.25,1,0.5,1), border-color 0.2s',
-                cursor: i === activeIdx ? 'default' : 'pointer',
-                boxShadow: i === activeIdx ? '0 12px 40px rgba(59,130,246,0.35)' : '0 4px 16px rgba(0,0,0,0.5)',
-              }}
-            >
-              <img
-                src={src}
-                alt={`Screen ${i + 1}`}
-                loading="lazy"
-                draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
-              />
-            </div>
-          );
-        })}
+    <div style={{
+      position: 'relative',
+      width,
+      height,
+      borderRadius: Math.round(width * 40 / 260),
+      background: 'linear-gradient(160deg, #f2f2f2 0%, #d0d0d0 100%)',
+      boxShadow: '0 2px 0 #b8b8b8, 0 5px 0 #a8a8a8, 0 12px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.95)',
+      flexShrink: 0,
+      userSelect: 'none',
+    }}>
+      {/* Power button */}
+      <div style={{ position: 'absolute', right: -3, top: Math.round(height * 0.19), width: 3, height: Math.round(height * 0.11), borderRadius: '0 2px 2px 0', background: '#b8b8b8' }} />
+      {/* Volume buttons */}
+      <div style={{ position: 'absolute', left: -3, top: Math.round(height * 0.17), width: 3, height: Math.round(height * 0.07), borderRadius: '2px 0 0 2px', background: '#b8b8b8' }} />
+      <div style={{ position: 'absolute', left: -3, top: Math.round(height * 0.26), width: 3, height: Math.round(height * 0.07), borderRadius: '2px 0 0 2px', background: '#b8b8b8' }} />
+      {/* Silent switch */}
+      <div style={{ position: 'absolute', left: -3, top: Math.round(height * 0.11), width: 3, height: Math.round(height * 0.04), borderRadius: '2px 0 0 2px', background: '#b8b8b8' }} />
+
+      {/* Screen bezel */}
+      <div style={{
+        position: 'absolute',
+        inset: Math.round(width * 10 / 260),
+        borderRadius: Math.round(width * 32 / 260),
+        background: '#0a0a0a',
+        overflow: 'hidden',
+      }}>
+        {/* Dynamic island */}
+        <div style={{
+          position: 'absolute',
+          top: Math.round(height * 0.018),
+          left: '50%', transform: 'translateX(-50%)',
+          width: Math.round(width * 0.33), height: Math.round(height * 0.04),
+          borderRadius: 99, background: '#000', zIndex: 10,
+        }} />
+
+        {/* Swipeable screen */}
+        <div
+          style={{ position: 'absolute', inset: 0, overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'pan-y' }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onWheel={onWheel}
+        >
+          <div style={{
+            display: 'flex',
+            height: '100%',
+            transform: `translateX(${offset}%)`,
+            transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
+            willChange: 'transform',
+          }}>
+            {screens.map((src, i) => (
+              <div key={i} style={{ flexShrink: 0, width: '100%', height: '100%' }}>
+                <img
+                  src={src} alt={`Screen ${i + 1}`} loading="lazy" draggable={false}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Home bar */}
+        <div style={{
+          position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
+          width: Math.round(width * 0.34), height: 3, borderRadius: 2,
+          background: 'rgba(255,255,255,0.45)', zIndex: 10,
+        }} />
+      </div>
+
+      {/* Screen counter */}
+      <div style={{
+        position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)',
+        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+        color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 8px',
+        borderRadius: 99, whiteSpace: 'nowrap', zIndex: 20,
+        border: '1px solid rgba(255,255,255,0.12)',
+      }}>
+        {activeIdx + 1} / {screens.length}
       </div>
     </div>
   );
@@ -254,25 +170,13 @@ function ImageCarousel({ screens, activeIdx, onChangeIdx }: {
 
 export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; catId: string; onClose: () => void }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const [mounted, setMounted]     = useState(false);
-  const [wide, setWide]           = useState(false);
+  const [vw, setVw] = useState(1200);
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  useEffect(() => {
-    const check = () => setWide(window.innerWidth >= 700);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  useEffect(() => {
-    const orig = console.warn.bind(console);
-    console.warn = (...args: unknown[]) => { if (typeof args[0] === 'string' && args[0].includes('THREE.Clock')) return; orig(...args); };
-    return () => { console.warn = orig; };
+    const update = () => setVw(window.innerWidth);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
   useEffect(() => {
@@ -285,118 +189,91 @@ export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; ca
     return () => window.removeEventListener('keydown', handler);
   }, [app.screens.length, onClose]);
 
-  const phoneCanvas = (
-    <div
-      onClick={e => e.stopPropagation()}
-      style={{ borderRadius: 16, overflow: 'hidden', background: '#0d1117', flexShrink: 0, ...(wide ? { width: 280, height: 500 } : { width: '100%', maxWidth: 280, height: 400, margin: '0 auto' }) }}
-    >
-      {mounted && (
-        <Canvas
-          camera={{ position: [0, 0, 7], fov: 42 }}
-          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-          onCreated={({ gl }) => { gl.setPixelRatio(Math.min(window.devicePixelRatio, 2)); }}
-        >
-          <ContextDisposer />
-          <ambientLight intensity={0.35} />
-          <directionalLight position={[4, 8, 6]} intensity={2.2} castShadow />
-          <directionalLight position={[-5, 2, 3]} intensity={0.8} color="#c8d8ff" />
-          <pointLight position={[-4, -4, -4]} intensity={0.8} color="#7c3aed" />
-          <Suspense fallback={null}>
-            <PhoneModel screens={app.screens} activeIdx={activeIdx} />
-          </Suspense>
-        </Canvas>
-      )}
-    </div>
-  );
+  const narrow = vw < 640;
+  // Scale phone to fit narrow screens with padding
+  const phoneW = narrow ? Math.min(220, vw - 48) : 260;
 
-  const infoBlock = (
-    <div onClick={e => e.stopPropagation()} style={{ color: '#fff', flexShrink: 0 }}>
-      <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
-      {app.developer && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>{app.developer}</div>}
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 12 }}>
-        {activeIdx + 1} / {app.screens.length} · swipe or drag · ← →
-      </div>
-      <button
-        onClick={() => {
-          const a = document.createElement('a');
-          a.href = `/api/references/download?category=${encodeURIComponent(catId)}&app=${encodeURIComponent(app.id)}`;
-          a.download = `${app.id}-reference.zip`;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }}
-        style={{ width: '100%', padding: '9px 0', background: '#3b82f6', color: '#fff', border: 0, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}
-      >
-        ⬇ Download Images + Claude Prompt
-      </button>
-      <button
-        onClick={onClose}
-        style={{ width: '100%', padding: '7px 0', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: 12, cursor: 'pointer' }}
-      >
-        ✕ Close (Esc)
-      </button>
-    </div>
-  );
-
-  // Dot indicator
   const dots = (
-    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 5, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 200, margin: '0 auto' }}>
+    <div style={{ display: 'flex', gap: 5, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 220 }}>
       {app.screens.map((_, i) => (
-        <button
-          key={i}
-          onClick={() => setActiveIdx(i)}
-          style={{
-            width: i === activeIdx ? 18 : 6,
-            height: 6,
-            borderRadius: 3,
-            background: i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.25)',
-            border: 0,
-            padding: 0,
-            cursor: 'pointer',
-            transition: 'all 0.25s ease',
-            flexShrink: 0,
-          }}
-        />
+        <button key={i} onClick={() => setActiveIdx(i)} style={{
+          width: i === activeIdx ? 18 : 6, height: 6, borderRadius: 3,
+          background: i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.3)',
+          border: 0, padding: 0, cursor: 'pointer',
+          transition: 'all 0.25s ease', flexShrink: 0,
+        }} />
       ))}
     </div>
   );
 
-  // ── Wide layout ──────────────────────────────────────────────────────────────
-  if (wide) {
+  const downloadBtn = (
+    <button
+      onClick={() => {
+        const a = document.createElement('a');
+        a.href = `/api/references/download?category=${encodeURIComponent(catId)}&app=${encodeURIComponent(app.id)}`;
+        a.download = `${app.id}-reference.zip`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }}
+      style={{ width: '100%', padding: '10px 0', background: '#3b82f6', color: '#fff', border: 0, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+    >
+      ⬇ Download Images + Claude Prompt
+    </button>
+  );
+
+  // ── Narrow: stacked, no arrows ───────────────────────────────────────────────
+  if (narrow) {
     return (
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
-      >
-        {/* Top row: phone + info */}
-        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 32, marginBottom: 28, padding: '0 24px' }}>
-          {phoneCanvas}
-          <div style={{ width: 220 }}>
-            {infoBlock}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(14px)', zIndex: 500, overflowY: 'auto', overflowX: 'hidden' }}>
+        <div onClick={e => e.stopPropagation()} style={{ maxWidth: 400, margin: '0 auto', padding: '24px 16px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <PhoneMockup screens={app.screens} activeIdx={activeIdx} onChangeIdx={setActiveIdx} width={phoneW} />
+          {dots}
+          <div style={{ width: '100%', color: '#fff' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
+            {app.developer && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 10 }}>{app.developer}</div>}
+            {downloadBtn}
+            <button onClick={onClose} style={{ width: '100%', marginTop: 8, padding: '8px 0', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, fontSize: 12, cursor: 'pointer' }}>✕ Close</button>
           </div>
         </div>
-
-        {/* Full-width carousel */}
-        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960 }}>
-          <ImageCarousel screens={app.screens} activeIdx={activeIdx} onChangeIdx={setActiveIdx} />
-        </div>
-        <div style={{ marginTop: 14 }}>{dots}</div>
       </div>
     );
   }
 
-  // ── Narrow layout ────────────────────────────────────────────────────────────
+  // ── Wide: phone centre, arrows on sides, info panel right ───────────────────
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(12px)', zIndex: 500, overflowY: 'auto', overflowX: 'hidden' }}
-    >
-      <div onClick={e => e.stopPropagation()} style={{ maxWidth: 440, margin: '0 auto', padding: '16px 12px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {phoneCanvas}
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(14px)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 16px', overflow: 'hidden' }}>
+      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
 
-        {/* Carousel */}
-        <ImageCarousel screens={app.screens} activeIdx={activeIdx} onChangeIdx={setActiveIdx} />
-        {dots}
+        {/* Left arrow */}
+        <button
+          onClick={() => setActiveIdx(p => Math.max(p - 1, 0))}
+          style={{ width: 44, height: 44, borderRadius: '50%', background: activeIdx === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', color: activeIdx === 0 ? 'rgba(255,255,255,0.2)' : '#fff', fontSize: 24, cursor: activeIdx === 0 ? 'default' : 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+        >‹</button>
 
-        {infoBlock}
+        {/* Phone + dots */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+          <PhoneMockup screens={app.screens} activeIdx={activeIdx} onChangeIdx={setActiveIdx} width={phoneW} />
+          {dots}
+        </div>
+
+        {/* Info panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: 200, flexShrink: 0, color: '#fff' }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 3 }}>{app.name}</div>
+            {app.developer && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>{app.developer}</div>}
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
+              Drag or scroll inside phone<br />Arrow keys · ← →
+            </div>
+          </div>
+          {downloadBtn}
+          <button onClick={onClose} style={{ width: '100%', padding: '8px 0', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, fontSize: 12, cursor: 'pointer' }}>✕ Close (Esc)</button>
+        </div>
+
+        {/* Right arrow */}
+        <button
+          onClick={() => setActiveIdx(p => Math.min(p + 1, app.screens.length - 1))}
+          style={{ width: 44, height: 44, borderRadius: '50%', background: activeIdx === app.screens.length - 1 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', color: activeIdx === app.screens.length - 1 ? 'rgba(255,255,255,0.2)' : '#fff', fontSize: 24, cursor: activeIdx === app.screens.length - 1 ? 'default' : 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+        >›</button>
+
       </div>
     </div>
   );
