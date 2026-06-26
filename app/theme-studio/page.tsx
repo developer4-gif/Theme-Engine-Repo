@@ -243,8 +243,9 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
   const [hasMore, setHasMore]         = useState(false);
   const [appsOffset, setAppsOffset]   = useState(0);
   const [catSearch, setCatSearch]     = useState('');
+  const [appSearch, setAppSearch]     = useState('');
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const PAGE = 5; // 5 cards per load
+  const PAGE = 20; // 20 cards per load
 
   useEffect(() => {
     setLoading(true);
@@ -272,6 +273,7 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
     setApps([]);
     setAppsOffset(0);
     setHasMore(false);
+    setAppSearch('');
     loadApps(cat.id, 0, true);
   };
 
@@ -356,19 +358,40 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
   }
 
   // ── App deck (category view) ──────────────────────────────────────────────────
+  const filteredApps = appSearch
+    ? apps.filter(a => a.name.toLowerCase().includes(appSearch.toLowerCase()) || a.developer.toLowerCase().includes(appSearch.toLowerCase()))
+    : apps;
+
   return (
     <div style={{ background: '#0a0f1a', minHeight: 'calc(100vh - 200px)' }}>
       {infoBar}
       {breadcrumb}
 
-      <div style={{ padding: '28px 40px 80px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#e2e8f0' }}>{getCatIcon(selectedCat.id)} {selectedCat.label}</h2>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{selectedCat.appCount} apps</span>
+      <div style={{ padding: '16px 40px', background: '#0d1321', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>🔍</span>
+          <input
+            value={appSearch}
+            onChange={e => setAppSearch(e.target.value)}
+            placeholder={`Search ${selectedCat.appCount} apps in ${selectedCat.label}…`}
+            style={{ width: '100%', padding: '9px 10px 9px 32px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+          />
+          {appSearch && <button onClick={() => setAppSearch('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 0, cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>✕</button>}
         </div>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+          {appSearch ? `${filteredApps.length} match` : `${apps.length} loaded of ${selectedCat.appCount}`}
+        </span>
+      </div>
 
+      <div style={{ padding: '20px 40px 80px' }}>
         {appsLoading && apps.length === 0 ? (
           <AppDeckSkeleton />
+        ) : filteredApps.length === 0 && appSearch ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.4)' }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+            <div>No apps match "{appSearch}"</div>
+            <button onClick={() => setAppSearch('')} style={{ marginTop: 12, padding: '7px 16px', background: 'rgba(139,92,246,0.3)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Clear search</button>
+          </div>
         ) : apps.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: 'rgba(255,255,255,0.4)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
@@ -376,19 +399,21 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
           </div>
         ) : (
           <>
-            <AppDeck apps={apps} catId={selectedCat.id} onOpen={setSelectedApp} />
+            <AppDeck apps={filteredApps} catId={selectedCat.id} onOpen={setSelectedApp} />
             {/* Sentinel for infinite scroll */}
-            <div ref={sentinelRef} style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
-              {appsLoading && (
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-                  <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>◌</span>
-                  Loading more apps…
-                </div>
-              )}
-              {!hasMore && apps.length > 0 && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>· All {apps.length} apps loaded ·</div>
-              )}
-            </div>
+            {!appSearch && (
+              <div ref={sentinelRef} style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
+                {appsLoading && (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+                    <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>◌</span>
+                    Loading more apps…
+                  </div>
+                )}
+                {!hasMore && apps.length > 0 && (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>· All {apps.length} apps loaded ·</div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -407,19 +432,9 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
   );
 }
 
-// ─── App Deck — 5 cards per row with flow animation ──────────────────────────
+// ─── App Deck — grid with flow animation ─────────────────────────────────────
 
 function AppDeck({ apps, catId, onOpen }: { apps: RefApp[]; catId: string; onOpen: (app: RefApp) => void }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      {chunk(apps, 5).map((row, rowIdx) => (
-        <AppRow key={rowIdx} apps={row} rowIdx={rowIdx} catId={catId} onOpen={onOpen} />
-      ))}
-    </div>
-  );
-}
-
-function AppRow({ apps, rowIdx, catId, onOpen }: { apps: RefApp[]; rowIdx: number; catId: string; onOpen: (app: RefApp) => void }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -428,7 +443,7 @@ function AppRow({ apps, rowIdx, catId, onOpen }: { apps: RefApp[]; rowIdx: numbe
     if (!el) return;
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.1 });
+    }, { threshold: 0.05 });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
@@ -438,15 +453,15 @@ function AppRow({ apps, rowIdx, catId, onOpen }: { apps: RefApp[]; rowIdx: numbe
       ref={rowRef}
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: 14,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gap: 10,
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(32px)',
-        transition: `opacity 0.45s ease ${rowIdx * 0.05}s, transform 0.45s ease ${rowIdx * 0.05}s`,
+        transform: visible ? 'translateY(0)' : 'translateY(24px)',
+        transition: 'opacity 0.4s ease, transform 0.4s ease',
       }}
     >
       {apps.map((app, i) => (
-        <AppCard key={app.id} app={app} catId={catId} delay={i * 0.06} onClick={() => onOpen(app)} />
+        <AppCard key={app.id} app={app} catId={catId} delay={Math.min(i, 12) * 0.03} onClick={() => onOpen(app)} />
       ))}
     </div>
   );
@@ -461,74 +476,75 @@ function AppCard({ app, catId, delay, onClick }: { app: RefApp; catId: string; d
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        borderRadius: 14,
+        borderRadius: 10,
         overflow: 'hidden',
         cursor: 'pointer',
         background: '#111827',
         border: `1px solid ${hover ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.07)'}`,
-        boxShadow: hover ? '0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.3)' : '0 2px 8px rgba(0,0,0,0.3)',
-        transform: hover ? 'translateY(-6px) scale(1.02)' : 'translateY(0) scale(1)',
-        transition: `transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s ease, border-color 0.22s ease`,
+        boxShadow: hover ? '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.3)' : '0 2px 6px rgba(0,0,0,0.3)',
+        transform: hover ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
+        transition: `transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, border-color 0.2s ease`,
         display: 'flex',
         flexDirection: 'column',
+        animationDelay: `${delay}s`,
       }}
     >
-      {/* Screenshot */}
-      <div style={{ aspectRatio: '9/16', background: '#0d1321', overflow: 'hidden', position: 'relative' }}>
+      {/* Screenshot — compact 3:5 portrait */}
+      <div style={{ aspectRatio: '3/5', background: '#0d1321', overflow: 'hidden', position: 'relative' }}>
         {app.preview ? (
           <img
             src={app.preview}
             alt={app.name}
             loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease', transform: hover ? 'scale(1.04)' : 'scale(1)' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease', transform: hover ? 'scale(1.05)' : 'scale(1)' }}
           />
         ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📱</div>
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>📱</div>
         )}
         {/* Screen count badge */}
-        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', color: '#fff', fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 9999, border: '1px solid rgba(255,255,255,0.1)' }}>
-          {app.screenCount} screens
+        <div style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', color: '#fff', fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 9999 }}>
+          {app.screenCount}
         </div>
         {/* Hover overlay */}
         {hover && (
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(79,70,229,0.6) 0%, transparent 60%)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px 12px' }}>
-            <div style={{ background: 'rgba(255,255,255,0.95)', color: '#1e1b4b', fontSize: 11, fontWeight: 800, padding: '6px 16px', borderRadius: 20, letterSpacing: '0.06em' }}>
-              VIEW 3D →
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(79,70,229,0.7) 0%, transparent 55%)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '10px 8px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.95)', color: '#1e1b4b', fontSize: 9, fontWeight: 800, padding: '4px 12px', borderRadius: 20, letterSpacing: '0.06em' }}>
+              VIEW →
             </div>
           </div>
         )}
       </div>
 
-      {/* Info row */}
-      <div style={{ padding: '10px 10px 8px', display: 'flex', gap: 8, alignItems: 'center' }}>
-        {app.icon ? (
-          <img src={app.icon} alt="" loading="lazy" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.08)' }} />
-        ) : (
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(139,92,246,0.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📱</div>
-        )}
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.name}</div>
-          {app.developer && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.developer}</div>}
+      {/* Info + actions */}
+      <div style={{ padding: '7px 8px 8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {app.icon ? (
+            <img src={app.icon} alt="" loading="lazy" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.08)' }} />
+          ) : (
+            <div style={{ width: 22, height: 22, borderRadius: 5, background: 'rgba(139,92,246,0.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>📱</div>
+          )}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>{app.name}</div>
+            {app.developer && <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.developer}</div>}
+          </div>
         </div>
-      </div>
 
-      {/* Download button */}
-      <div style={{ padding: '0 10px 10px' }}>
+        {/* Download button — prompt first */}
         <button
           onClick={e => {
             e.stopPropagation();
             downloadAppZip(catId, app.id);
           }}
           style={{
-            width: '100%', padding: '6px 0',
-            background: hover ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
-            color: hover ? '#c4b5fd' : 'rgba(255,255,255,0.4)',
-            border: `1px solid ${hover ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 8, fontSize: 9, fontWeight: 700, cursor: 'pointer',
-            transition: 'all 0.15s ease', letterSpacing: '0.04em',
+            width: '100%', padding: '5px 0',
+            background: hover ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.04)',
+            color: hover ? '#c4b5fd' : 'rgba(255,255,255,0.35)',
+            border: `1px solid ${hover ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 6, fontSize: 8, fontWeight: 700, cursor: 'pointer',
+            transition: 'all 0.15s ease', letterSpacing: '0.03em',
           }}
         >
-          ⬇ Download + Claude Prompt
+          🤖 Prompt + ⬇ ZIP
         </button>
       </div>
     </div>
@@ -537,13 +553,13 @@ function AppCard({ app, catId, delay, onClick }: { app: RefApp; catId: string; d
 
 function AppDeckSkeleton() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} style={{ borderRadius: 14, overflow: 'hidden', background: '#111827', border: '1px solid rgba(255,255,255,0.06)', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.1}s` }}>
-          <div style={{ aspectRatio: '9/16', background: '#1a2234' }} />
-          <div style={{ padding: 10 }}>
-            <div style={{ height: 10, width: '70%', background: '#1a2234', borderRadius: 5, marginBottom: 6 }} />
-            <div style={{ height: 8, width: '50%', background: '#1a2234', borderRadius: 5 }} />
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+      {Array.from({ length: 20 }).map((_, i) => (
+        <div key={i} style={{ borderRadius: 10, overflow: 'hidden', background: '#111827', border: '1px solid rgba(255,255,255,0.06)', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.05}s` }}>
+          <div style={{ aspectRatio: '3/5', background: '#1a2234' }} />
+          <div style={{ padding: 8 }}>
+            <div style={{ height: 8, width: '70%', background: '#1a2234', borderRadius: 4, marginBottom: 5 }} />
+            <div style={{ height: 7, width: '50%', background: '#1a2234', borderRadius: 4 }} />
           </div>
         </div>
       ))}
