@@ -227,6 +227,16 @@ export default function ThemeStudioPage() {
   );
 }
 
+// ─── Client-side cache (module-level, lives for the browser session) ─────────
+
+interface CatCache {
+  apps: RefApp[];
+  hasMore: boolean;
+  offset: number;       // how many we've fetched so far
+}
+const categoriesCache: { data: RefCategory[] | null } = { data: null };
+const appsCache = new Map<string, CatCache>();
+
 // ─── Android Reference Gallery ────────────────────────────────────────────────
 
 function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents }: {
@@ -238,20 +248,30 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
   const [selectedCat, setSelectedCat] = useState<RefCategory | null>(null);
   const [apps, setApps]               = useState<RefApp[]>([]);
   const [selectedApp, setSelectedApp] = useState<RefApp | null>(null);
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading]         = useState(!categoriesCache.data);
   const [appsLoading, setAppsLoading] = useState(false);
   const [hasMore, setHasMore]         = useState(false);
   const [appsOffset, setAppsOffset]   = useState(0);
   const [catSearch, setCatSearch]     = useState('');
   const [appSearch, setAppSearch]     = useState('');
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const PAGE = 20; // 20 cards per load
+  const PAGE = 20;
 
+  // Load categories — use cache if already fetched
   useEffect(() => {
+    if (categoriesCache.data) {
+      setCategories(categoriesCache.data);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     fetch('/api/references')
       .then(r => r.json())
-      .then((data: RefCategory[]) => { setCategories(data); setLoading(false); })
+      .then((data: RefCategory[]) => {
+        categoriesCache.data = data;
+        setCategories(data);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
@@ -260,7 +280,12 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
     fetch(`/api/references?category=${catId}&offset=${offset}&limit=${PAGE}`)
       .then(r => r.json())
       .then((data: { apps: RefApp[]; hasMore: boolean }) => {
-        setApps(prev => replace ? data.apps : [...prev, ...data.apps]);
+        setApps(prev => {
+          const next = replace ? data.apps : [...prev, ...data.apps];
+          // Update cache
+          appsCache.set(catId, { apps: next, hasMore: data.hasMore, offset: offset + PAGE });
+          return next;
+        });
         setHasMore(data.hasMore);
         setAppsOffset(offset + PAGE);
         setAppsLoading(false);
@@ -270,10 +295,22 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
 
   const openCategory = (cat: RefCategory) => {
     setSelectedCat(cat);
+    setAppSearch('');
+    setSelectedApp(null);
+
+    // Restore from cache — no network request
+    const cached = appsCache.get(cat.id);
+    if (cached) {
+      setApps(cached.apps);
+      setHasMore(cached.hasMore);
+      setAppsOffset(cached.offset);
+      return;
+    }
+
+    // First visit — fetch
     setApps([]);
     setAppsOffset(0);
     setHasMore(false);
-    setAppSearch('');
     loadApps(cat.id, 0, true);
   };
 
