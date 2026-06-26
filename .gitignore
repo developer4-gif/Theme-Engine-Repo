@@ -40,8 +40,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# reference screenshots — too large for git (127k images); host separately
-/references/
-
 # generator scripts
 /scripts/
+
+.env*
+
+certificates
+.vercel
+
+# large local data — images live on HuggingFace, not GitHub
+/references/
+/references-resized/
+/public/references/

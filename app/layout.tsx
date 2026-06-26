@@ -15,6 +15,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="ngrok-skip-browser-warning" content="true" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var _fetch = window.fetch;
+            window.fetch = function(url, opts) {
+              opts = opts || {};
+              opts.headers = Object.assign({ 'ngrok-skip-browser-warning': 'true' }, opts.headers || {});
+              return _fetch(url, opts);
+            };
+          })();
+        `}} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

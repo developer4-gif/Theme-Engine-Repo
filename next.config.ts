@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: {},
+  outputFileTracingExcludes: {
+    '/api/*': [
+      './references/**/*',
+      './references-resized/**/*',
+      './public/references/**/*',
+    ],
+  },
 };
 
 export default nextConfig;
