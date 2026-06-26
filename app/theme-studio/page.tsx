@@ -137,7 +137,7 @@ export default function ThemeStudioPage() {
             {mode === 'web' ? (
               <><span>🖥</span> Browser Themes <span style={{ fontSize: 11, background: viewMode === 'web' ? `${c.primary}22` : c.tint, color: viewMode === 'web' ? c.primary : c.ink3, padding: '2px 7px', borderRadius: 999, fontWeight: 600 }}>{webThemes.length}</span></>
             ) : (
-              <><span>📱</span> Android References <span style={{ fontSize: 11, background: viewMode === 'mobile' ? `${c.primary}22` : c.tint, color: viewMode === 'mobile' ? c.primary : c.ink3, padding: '2px 7px', borderRadius: 999, fontWeight: 600 }}>18k+ apps</span></>
+              <><span>📱</span> Screens <span style={{ fontSize: 11, background: viewMode === 'mobile' ? `${c.primary}22` : c.tint, color: viewMode === 'mobile' ? c.primary : c.ink3, padding: '2px 7px', borderRadius: 999, fontWeight: 600 }}>18k+ apps</span></>
             )}
           </button>
         ))}
@@ -334,8 +334,8 @@ function AndroidReferenceGallery({ themeColors: c, themeBorders, themeComponents
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📱</div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>Android App Reference Gallery</div>
-          <div style={{ fontSize: 11, color: 'rgba(226,232,240,0.5)' }}>18,000+ real app screenshots · 26 categories · Download images + Claude prompt</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>Screens</div>
+          <div style={{ fontSize: 11, color: 'rgba(226,232,240,0.5)' }}>18,000+ app screenshots · 26 categories · Download images + Claude prompt</div>
         </div>
       </div>
       {selectedCat && (
