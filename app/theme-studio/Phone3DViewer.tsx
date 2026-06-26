@@ -116,12 +116,146 @@ function PhoneModel({ screens, activeIdx }: { screens: string[]; activeIdx: numb
   );
 }
 
+// ─── Swipeable image carousel ─────────────────────────────────────────────────
+// Works with touch (finger) and mouse drag on any screen size.
+// Each card is the same size, snaps to center, smooth spring animation.
+
+function ImageCarousel({ screens, activeIdx, onChangeIdx }: {
+  screens: string[];
+  activeIdx: number;
+  onChangeIdx: (i: number) => void;
+}) {
+  const trackRef   = useRef<HTMLDivElement>(null);
+  // offset in px — negative = scrolled right
+  const [offset, setOffset]   = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStart  = useRef(0);   // pointer x at drag start
+  const baseOffset = useRef(0);   // offset at drag start
+  const CARD_W     = 200;         // px per card
+  const GAP        = 16;          // px between cards
+  const STEP       = CARD_W + GAP;
+
+  // Snap to activeIdx whenever it changes externally (thumbnail click / keyboard)
+  useEffect(() => {
+    setOffset(-activeIdx * STEP);
+  }, [activeIdx, STEP]);
+
+  const snapToNearest = useCallback((currentOffset: number) => {
+    const raw = -currentOffset / STEP;
+    const clamped = Math.max(0, Math.min(screens.length - 1, Math.round(raw)));
+    onChangeIdx(clamped);
+    setOffset(-clamped * STEP);
+  }, [screens.length, STEP, onChangeIdx]);
+
+  // ── Pointer events (mouse + touch via pointer events API) ────────────────────
+  const onPointerDown = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragStart.current  = e.clientX;
+    baseOffset.current = offset;
+    setDragging(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging) return;
+    const delta = e.clientX - dragStart.current;
+    // Rubber-band at edges
+    let next = baseOffset.current + delta;
+    const min = -(screens.length - 1) * STEP;
+    if (next > 0)   next = next * 0.25;
+    if (next < min) next = min + (next - min) * 0.25;
+    setOffset(next);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!dragging) return;
+    setDragging(false);
+    const delta = e.clientX - dragStart.current;
+    // Flick — if moved more than 40px snap one card in that direction
+    if (Math.abs(delta) > 40) {
+      const next = delta < 0
+        ? Math.min(screens.length - 1, activeIdx + 1)
+        : Math.max(0, activeIdx - 1);
+      onChangeIdx(next);
+      setOffset(-next * STEP);
+    } else {
+      snapToNearest(offset);
+    }
+  };
+
+  // ── Wheel (horizontal or vertical) ──────────────────────────────────────────
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (dx > 20)  { const n = Math.min(screens.length - 1, activeIdx + 1); onChangeIdx(n); setOffset(-n * STEP); }
+    if (dx < -20) { const n = Math.max(0, activeIdx - 1); onChangeIdx(n); setOffset(-n * STEP); }
+  };
+
+  return (
+    <div
+      style={{ overflow: 'hidden', width: '100%', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none' }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onWheel={onWheel}
+    >
+      <div
+        ref={trackRef}
+        style={{
+          display: 'flex',
+          gap: GAP,
+          // Center on first card: shift right by (containerWidth/2 - CARD_W/2)
+          // We use a CSS variable trick via padding instead
+          paddingLeft: `calc(50% - ${CARD_W / 2}px)`,
+          paddingRight: `calc(50% - ${CARD_W / 2}px)`,
+          transform: `translateX(${offset}px)`,
+          transition: dragging ? 'none' : 'transform 0.38s cubic-bezier(0.25, 1, 0.5, 1)',
+          willChange: 'transform',
+        }}
+      >
+        {screens.map((src, i) => {
+          const dist = Math.abs(i - activeIdx);
+          const scale = dist === 0 ? 1 : dist === 1 ? 0.88 : 0.78;
+          const opacity = dist === 0 ? 1 : dist === 1 ? 0.65 : 0.4;
+          return (
+            <div
+              key={i}
+              onClick={() => { if (!dragging) onChangeIdx(i); }}
+              style={{
+                flexShrink: 0,
+                width: CARD_W,
+                height: Math.round(CARD_W * 16 / 9),   // 9:16 portrait
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: `2px solid ${i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
+                transform: `scale(${scale})`,
+                opacity,
+                transition: dragging ? 'opacity 0.1s, transform 0.1s' : 'opacity 0.35s ease, transform 0.35s cubic-bezier(0.25,1,0.5,1), border-color 0.2s',
+                cursor: i === activeIdx ? 'default' : 'pointer',
+                boxShadow: i === activeIdx ? '0 12px 40px rgba(59,130,246,0.35)' : '0 4px 16px rgba(0,0,0,0.5)',
+              }}
+            >
+              <img
+                src={src}
+                alt={`Screen ${i + 1}`}
+                loading="lazy"
+                draggable={false}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main viewer ──────────────────────────────────────────────────────────────
+
 export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; catId: string; onClose: () => void }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const [mounted, setMounted] = useState(false);
-  // true = wide layout (phone left + sidebar right), false = tall layout (phone top + strip bottom)
-  const [wide, setWide] = useState(false);
-  const stripRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted]     = useState(false);
+  const [wide, setWide]           = useState(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -135,7 +269,6 @@ export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; ca
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Suppress THREE.Clock deprecation warnings
   useEffect(() => {
     const orig = console.warn.bind(console);
     console.warn = (...args: unknown[]) => { if (typeof args[0] === 'string' && args[0].includes('THREE.Clock')) return; orig(...args); };
@@ -145,28 +278,17 @@ export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; ca
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') setActiveIdx(p => (p + 1) % app.screens.length);
-      if (e.key === 'ArrowLeft')  setActiveIdx(p => (p - 1 + app.screens.length) % app.screens.length);
+      if (e.key === 'ArrowRight') setActiveIdx(p => Math.min(p + 1, app.screens.length - 1));
+      if (e.key === 'ArrowLeft')  setActiveIdx(p => Math.max(p - 1, 0));
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [app.screens.length, onClose]);
 
-  // Scroll active thumbnail into view in the strip
-  useEffect(() => {
-    const strip = stripRef.current;
-    if (!strip) return;
-    const thumb = strip.children[activeIdx] as HTMLElement | undefined;
-    thumb?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, [activeIdx]);
-
-  const prev = useCallback((e: React.MouseEvent) => { e.stopPropagation(); setActiveIdx(p => (p - 1 + app.screens.length) % app.screens.length); }, [app.screens.length]);
-  const next = useCallback((e: React.MouseEvent) => { e.stopPropagation(); setActiveIdx(p => (p + 1) % app.screens.length); }, [app.screens.length]);
-
   const phoneCanvas = (
     <div
       onClick={e => e.stopPropagation()}
-      style={{ borderRadius: 16, overflow: 'hidden', background: '#0d1117', flexShrink: 0, ...(wide ? { width: 300, height: 530 } : { width: '100%', maxWidth: 300, height: 420, margin: '0 auto' }) }}
+      style={{ borderRadius: 16, overflow: 'hidden', background: '#0d1117', flexShrink: 0, ...(wide ? { width: 280, height: 500 } : { width: '100%', maxWidth: 280, height: 400, margin: '0 auto' }) }}
     >
       {mounted && (
         <Canvas
@@ -187,53 +309,12 @@ export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; ca
     </div>
   );
 
-  // Horizontal scrollable thumbnail strip (used in both layouts)
-  const thumbStrip = (
-    <div
-      ref={stripRef}
-      onClick={e => e.stopPropagation()}
-      style={{
-        display: 'flex',
-        gap: 6,
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        padding: '6px 4px',
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-        // contain scrolling so nothing bleeds outside
-        maxWidth: '100%',
-        flexShrink: 0,
-      }}
-    >
-      {app.screens.map((src, i) => (
-        <button
-          key={i}
-          onClick={() => setActiveIdx(i)}
-          style={{
-            flexShrink: 0,
-            width: wide ? 44 : 38,
-            height: wide ? 78 : 68,
-            borderRadius: 6,
-            overflow: 'hidden',
-            padding: 0,
-            cursor: 'pointer',
-            border: `2px solid ${i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.15)'}`,
-            transition: 'border-color 0.15s',
-            background: 'none',
-          }}
-        >
-          <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
-        </button>
-      ))}
-    </div>
-  );
-
-  const infoAndActions = (
+  const infoBlock = (
     <div onClick={e => e.stopPropagation()} style={{ color: '#fff', flexShrink: 0 }}>
-      <div style={{ fontSize: wide ? 17 : 15, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
-      {app.developer && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>{app.developer}</div>}
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: 12 }}>
-        Screen {activeIdx + 1} / {app.screens.length} · ← → to navigate
+      <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
+      {app.developer && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>{app.developer}</div>}
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 12 }}>
+        {activeIdx + 1} / {app.screens.length} · swipe or drag · ← →
       </div>
       <button
         onClick={() => {
@@ -255,86 +336,67 @@ export default function Phone3DViewer({ app, catId, onClose }: { app: RefApp; ca
     </div>
   );
 
-  // ── Wide layout: [‹] [phone] [sidebar: info + strip] [›] ────────────────────
+  // Dot indicator
+  const dots = (
+    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 5, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 200, margin: '0 auto' }}>
+      {app.screens.map((_, i) => (
+        <button
+          key={i}
+          onClick={() => setActiveIdx(i)}
+          style={{
+            width: i === activeIdx ? 18 : 6,
+            height: 6,
+            borderRadius: 3,
+            background: i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.25)',
+            border: 0,
+            padding: 0,
+            cursor: 'pointer',
+            transition: 'all 0.25s ease',
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </div>
+  );
+
+  // ── Wide layout ──────────────────────────────────────────────────────────────
   if (wide) {
     return (
       <div
         onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '20px 16px', overflow: 'hidden' }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
       >
-        <button onClick={prev} style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 22, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-
-        {phoneCanvas}
-
-        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 14, width: 220, maxHeight: '90vh', overflow: 'hidden' }}>
-          {infoAndActions}
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: -6 }}>All screens</div>
-          {/* Wrap thumbnails so they don't overflow — 3-col grid in sidebar */}
-          <div
-            ref={stripRef}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 6,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              maxHeight: 340,
-              paddingRight: 4,
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-            }}
-          >
-            {app.screens.map((src, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveIdx(i)}
-                style={{
-                  width: '100%',
-                  aspectRatio: '9/16',
-                  borderRadius: 6,
-                  overflow: 'hidden',
-                  padding: 0,
-                  cursor: 'pointer',
-                  border: `2px solid ${i === activeIdx ? '#3b82f6' : 'rgba(255,255,255,0.15)'}`,
-                  transition: 'border-color 0.15s',
-                  background: 'none',
-                }}
-              >
-                <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
-              </button>
-            ))}
+        {/* Top row: phone + info */}
+        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 32, marginBottom: 28, padding: '0 24px' }}>
+          {phoneCanvas}
+          <div style={{ width: 220 }}>
+            {infoBlock}
           </div>
         </div>
 
-        <button onClick={next} style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 22, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+        {/* Full-width carousel */}
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960 }}>
+          <ImageCarousel screens={app.screens} activeIdx={activeIdx} onChangeIdx={setActiveIdx} />
+        </div>
+        <div style={{ marginTop: 14 }}>{dots}</div>
       </div>
     );
   }
 
-  // ── Narrow layout: stacked — phone → nav row → info → horizontal thumb strip ─
+  // ── Narrow layout ────────────────────────────────────────────────────────────
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(12px)', zIndex: 500, overflowY: 'auto', overflowX: 'hidden', padding: '16px 12px 32px' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(12px)', zIndex: 500, overflowY: 'auto', overflowX: 'hidden' }}
     >
-      <div onClick={e => e.stopPropagation()} style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-        {/* Phone canvas */}
+      <div onClick={e => e.stopPropagation()} style={{ maxWidth: 440, margin: '0 auto', padding: '16px 12px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {phoneCanvas}
 
-        {/* Prev / Next row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <button onClick={prev} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>‹ Prev</button>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>{activeIdx + 1}/{app.screens.length}</span>
-          <button onClick={next} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>Next ›</button>
-        </div>
+        {/* Carousel */}
+        <ImageCarousel screens={app.screens} activeIdx={activeIdx} onChangeIdx={setActiveIdx} />
+        {dots}
 
-        {/* Info + actions */}
-        {infoAndActions}
-
-        {/* Horizontal thumbnail strip */}
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>All screens — scroll sideways</div>
-        {thumbStrip}
+        {infoBlock}
       </div>
     </div>
   );
