@@ -119,11 +119,11 @@ const theme: Theme = {
   },
   layout: {
     variant: 'dashboard',
-    navPosition: 'side',
+    navPosition: 'left',
     sidebarStyle: 'glass',
-    navBarStyle: 'flat',
+    navBarStyle: 'none',
     statLayout: 'grid-4',
-    contentLayout: 'cards-grid',
+    contentLayout: 'table-primary',
     sidebarWidth: '228px',
     sidebarCollapsedWidth: '60px',
     headerSticky: true,
@@ -132,7 +132,7 @@ const theme: Theme = {
   },
   components: {
     button: {
-      style: 'solid',
+      style: 'rounded',
       radius: '10px',
       fontWeight: 600,
       letterSpacing: '0em',
@@ -150,7 +150,7 @@ const theme: Theme = {
       accentPosition: 'none',
     },
     table: {
-      style: 'glass',
+      style: 'compact',
       headerBg: 'rgba(10,26,54,0.55)',
       rowHoverBg: 'rgba(56,189,248,0.06)',
       borderColor: 'rgba(56,189,248,0.07)',
@@ -184,7 +184,7 @@ const theme: Theme = {
       fontWeight: 600,
     },
     nav: {
-      style: 'glass',
+      style: 'filled',
       itemRadius: '12px',
       itemPadding: '10px 14px',
       fontSize: '13px',
