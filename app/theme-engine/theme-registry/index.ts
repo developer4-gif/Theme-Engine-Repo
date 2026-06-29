@@ -36,6 +36,7 @@ import smartOperations from '../themes/smart-operations';
 import modernCrm from '../themes/modern-crm';
 import platinumProfessional from '../themes/platinum-professional';
 import cleanStartup from '../themes/clean-startup';
+import jainsCrm from '../themes/jains-crm';
 
 // ── Finance mobile themes ───────────────────────────────────────────────────
 import aaveDark from '../themes/aave-dark';
@@ -127,7 +128,7 @@ export const THEME_REGISTRY: Theme[] = [
   manufacturingDashboard, analyticsPlatform, governmentPortal, luxuryBlackGold, softGlass,
   minimalWhite, professionalBanking, materialInspired, oceanBlue, emeraldBusiness, modernErp,
   medicalRecordsPro, consultingFirm, executiveWorkspace, enterpriseDark, smartOperations,
-  modernCrm, platinumProfessional, cleanStartup,
+  modernCrm, platinumProfessional, cleanStartup, jainsCrm,
 
   // Finance Mobile (10)
   aaveDark, alineaInvest, bankingRed, fintechSavings, cryptoNeon, budgetMint, wealthNavy,
