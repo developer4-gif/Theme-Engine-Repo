@@ -9,7 +9,6 @@ import pulse from '../themes/pulse';
 import slate from '../themes/slate';
 import forge from '../themes/forge';
 import aurora from '../themes/aurora';
-import vortex from '../themes/vortex';
 import bioluminescent from '../themes/bioluminescent';
 import navyEnterprise from '../themes/navy-enterprise';
 import whiteCorporate from '../themes/white-corporate';
@@ -123,7 +122,7 @@ import gigEconomy from '../themes/gig-economy';
 
 export const THEME_REGISTRY: Theme[] = [
   // Web / Enterprise (35)
-  obsidian, crystal, enterprise, aurelius, pulse, slate, forge, aurora, vortex, bioluminescent,
+  obsidian, crystal, enterprise, aurelius, pulse, slate, forge, aurora, bioluminescent,
   navyEnterprise, whiteCorporate, darkExecutive, indigoSaas, modernHealthcare, industrialGray,
   manufacturingDashboard, analyticsPlatform, governmentPortal, luxuryBlackGold, softGlass,
   minimalWhite, professionalBanking, materialInspired, oceanBlue, emeraldBusiness, modernErp,
