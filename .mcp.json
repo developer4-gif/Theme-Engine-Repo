@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "theme-engine": {
+      "type": "http",
+      "url": "https://theme-engine-repo.vercel.app/api/mcp"
+    }
+  }
+}
